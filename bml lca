@@ -1,0 +1,265 @@
+# ============================================================
+# Bank Marketing Dataset - KNN Classification
+# UCI Machine Learning Repository
+# ============================================================
+
+import pandas as pd
+import numpy as np
+import zipfile
+import os
+
+from google.colab import files
+
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix
+)
+
+# ------------------------------------------------------------
+# 1. Upload Dataset
+# ------------------------------------------------------------
+
+print("Upload the UCI Bank Marketing ZIP file")
+
+uploaded = files.upload()
+
+uploaded_file = list(uploaded.keys())[0]
+
+print("\nUploaded file:", uploaded_file)
+
+# ------------------------------------------------------------
+# 2. Extract ZIP File
+# ------------------------------------------------------------
+
+if uploaded_file.endswith(".zip"):
+
+    with zipfile.ZipFile(uploaded_file, "r") as zip_ref:
+        zip_ref.extractall("bank_dataset")
+
+    print("\nZIP file extracted successfully!")
+
+else:
+    print("\nPlease upload a ZIP file.")
+
+# ------------------------------------------------------------
+# 3. Find bank-full.csv
+# ------------------------------------------------------------
+
+bank_full_path = None
+
+for root, dirs, filenames in os.walk("bank_dataset"):
+
+    for filename in filenames:
+
+        if filename == "bank-full.csv":
+            bank_full_path = os.path.join(root, filename)
+
+if bank_full_path is None:
+
+    raise FileNotFoundError(
+        "bank-full.csv was not found inside the uploaded ZIP file."
+    )
+
+print("Found dataset:", bank_full_path)
+
+# ------------------------------------------------------------
+# 4. Load Dataset
+# ------------------------------------------------------------
+
+df = pd.read_csv(
+    bank_full_path,
+    sep=";"
+)
+
+print("\nDataset loaded successfully!")
+
+print("\nDataset shape:")
+print(df.shape)
+
+print("\nFirst 5 records:")
+print(df.head())
+
+# ------------------------------------------------------------
+# 5. Separate Features and Target
+# ------------------------------------------------------------
+
+X = df.drop("y", axis=1)
+
+y = df["y"]
+
+# Convert target:
+# no  -> 0
+# yes -> 1
+
+y = y.map({
+    "no": 0,
+    "yes": 1
+})
+
+print("\nTarget distribution:")
+print(y.value_counts())
+
+# ------------------------------------------------------------
+# 6. Identify Categorical and Numerical Columns
+# ------------------------------------------------------------
+
+categorical_columns = X.select_dtypes(
+    include=["object"]
+).columns.tolist()
+
+numerical_columns = X.select_dtypes(
+    exclude=["object"]
+).columns.tolist()
+
+print("\nCategorical columns:")
+print(categorical_columns)
+
+print("\nNumerical columns:")
+print(numerical_columns)
+
+# ------------------------------------------------------------
+# 7. Preprocessing
+# ------------------------------------------------------------
+
+preprocessor = ColumnTransformer(
+    transformers=[
+
+        (
+            "num",
+            StandardScaler(),
+            numerical_columns
+        ),
+
+        (
+            "cat",
+            OneHotEncoder(handle_unknown="ignore"),
+            categorical_columns
+        )
+    ]
+)
+
+# ------------------------------------------------------------
+# 8. Create KNN Model
+# ------------------------------------------------------------
+
+knn = KNeighborsClassifier(
+    n_neighbors=5,
+    metric="minkowski",
+    p=2
+)
+
+# ------------------------------------------------------------
+# 9. Create Pipeline
+# ------------------------------------------------------------
+
+model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", knn)
+    ]
+)
+
+# ------------------------------------------------------------
+# 10. Train-Test Split
+# ------------------------------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+
+    X,
+    y,
+
+    test_size=0.20,
+
+    random_state=42,
+
+    stratify=y
+)
+
+print("\nTraining samples:", X_train.shape[0])
+print("Testing samples :", X_test.shape[0])
+
+# ------------------------------------------------------------
+# 11. Train KNN Model
+# ------------------------------------------------------------
+
+print("\nTraining KNN model...")
+
+model.fit(
+    X_train,
+    y_train
+)
+
+print("Training completed!")
+
+# ------------------------------------------------------------
+# 12. Prediction
+# ------------------------------------------------------------
+
+y_pred = model.predict(X_test)
+
+# ------------------------------------------------------------
+# 13. Accuracy
+# ------------------------------------------------------------
+
+accuracy = accuracy_score(
+    y_test,
+    y_pred
+)
+
+print("\n======================================")
+print("      KNN CLASSIFICATION RESULTS")
+print("======================================")
+
+print("\nAccuracy:", accuracy)
+print(f"Accuracy: {accuracy * 100:.2f}%")
+
+# ------------------------------------------------------------
+# 14. Confusion Matrix
+# ------------------------------------------------------------
+
+cm = confusion_matrix(
+    y_test,
+    y_pred
+)
+
+print("\nConfusion Matrix:")
+print(cm)
+
+# ------------------------------------------------------------
+# 15. Classification Report
+# ------------------------------------------------------------
+
+print("\nClassification Report:")
+
+print(
+    classification_report(
+        y_test,
+        y_pred,
+        target_names=["No", "Yes"]
+    )
+)
+
+# ------------------------------------------------------------
+# 16. Confusion Matrix Details
+# ------------------------------------------------------------
+
+tn, fp, fn, tp = cm.ravel()
+
+print("\n======================================")
+print("    CONFUSION MATRIX DETAILS")
+print("======================================")
+
+print("True Negatives  (TN):", tn)
+print("False Positives (FP):", fp)
+print("False Negatives (FN):", fn)
+print("True Positives  (TP):", tp)
+
+print("\n======================================")
+print("       PROGRAM COMPLETED")
+print("======================================")
